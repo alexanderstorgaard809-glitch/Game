@@ -31,6 +31,7 @@ canvas#game {
 }
 canvas#game.dragging { cursor: grabbing; }
 canvas#game.pointer { cursor: pointer; }
+canvas#game.building { cursor: crosshair; }
 
 .panel {
   background: var(--panel);
@@ -145,6 +146,7 @@ canvas#game.pointer { cursor: pointer; }
   border-radius: 9px;
   padding: 9px 14px;
   cursor: pointer;
+  white-space: nowrap;
 }
 .btn:hover { background: rgba(255, 255, 255, 0.16); }
 .btn.primary { background: var(--accent); border-color: rgba(0,0,0,0.25); }
@@ -228,6 +230,66 @@ kbd {
   z-index: 10;
 }
 #fade.on { opacity: 1; }
+
+/* Build mode */
+.buildbar {
+  position: fixed;
+  bottom: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(900px, calc(100vw - 24px));
+  padding: 10px 12px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.build-head { display: flex; align-items: center; gap: 14px; }
+.build-title { font-weight: 800; font-size: 15px; color: var(--accent-2); white-space: nowrap; }
+.build-hint { flex: 1; font-size: 12px; color: var(--muted); min-width: 0; }
+.build-side { display: flex; gap: 6px; }
+.btn.small { padding: 6px 10px; font-size: 13px; }
+.btn:disabled { opacity: 0.4; cursor: default; }
+.btn:disabled:hover { background: rgba(255, 255, 255, 0.08); }
+
+.build-tools { display: flex; gap: 14px; flex-wrap: wrap; }
+.tool-group { display: flex; flex-direction: column; gap: 5px; }
+.tool-group-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--muted);
+}
+.tool-row { display: flex; gap: 6px; }
+.tool {
+  font: inherit;
+  width: 84px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 4px 4px 6px;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid transparent;
+  border-radius: 9px;
+  cursor: pointer;
+}
+.tool:hover { background: rgba(255, 255, 255, 0.12); }
+.tool.active { border-color: var(--accent-2); background: rgba(242, 179, 61, 0.16); }
+.tool canvas { width: 56px; height: 44px; display: block; }
+.tool-name { font-size: 11px; font-weight: 700; line-height: 1.2; text-align: center; }
+.tool-price { font-size: 11px; color: var(--money); font-variant-numeric: tabular-nums; }
+.tool-remove .tool-price { color: var(--muted); }
+.tool.too-expensive .tool-price { color: #ff8a73; }
+.tool:focus-visible, .btn:focus-visible, .speed button:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 2px; }
+
+/* While building, the toolbar takes the bottom of the screen. */
+body.building .help { display: none; }
+body.building .savebar { bottom: auto; top: 84px; }
+
+#tooltip .price-neg { color: #ff9b85; font-weight: 800; margin-left: 8px; }
+#tooltip .price-pos { color: var(--money); font-weight: 800; margin-left: 8px; }
+#tooltip small.bad { color: #ff8a73; }
 
 @media (max-width: 820px) {
   .help { display: none; }

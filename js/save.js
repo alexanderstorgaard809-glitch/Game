@@ -14,7 +14,7 @@
       activeBusinessId: null,
       camera: null, // filled in by the city on first run
       businesses: [
-        { id: 'pizzeria-1', type: 'pizzeria', name: 'My Pizzeria' },
+        { id: 'pizzeria-1', type: 'pizzeria', name: 'My Pizzeria', layout: Layout.create() },
       ],
     };
   }
@@ -32,7 +32,15 @@
       if (isNum(data.money)) base.money = data.money;
       if (isNum(data.time) && data.time >= 0) base.time = data.time;
       if ([0, 1, 2, 3].includes(data.speed)) base.speed = data.speed;
-      if (Array.isArray(data.businesses) && data.businesses.length) base.businesses = data.businesses;
+      if (Array.isArray(data.businesses)) {
+        // Keep the known businesses and restore each one's saved layout.
+        for (const b of base.businesses) {
+          const saved = data.businesses.find(s => s && s.id === b.id);
+          if (!saved) continue;
+          if (typeof saved.name === 'string' && saved.name) b.name = saved.name;
+          b.layout = Layout.sanitize(saved.layout);
+        }
+      }
       if (data.scene === 'interior' && base.businesses.some(b => b.id === data.activeBusinessId)) {
         base.scene = 'interior';
         base.activeBusinessId = data.activeBusinessId;

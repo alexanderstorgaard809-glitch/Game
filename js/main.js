@@ -71,8 +71,10 @@
   function interiorCamera() {
     const b = Interior.bounds();
     const bw = b.maxX - b.minX, bh = b.maxY - b.minY;
-    const zoom = Math.max(0.5, Math.min(2.0, Math.min((view.w - 60) / bw, (view.h - 190) / bh)));
-    return { x: (b.minX + b.maxX) / 2, y: (b.minY + b.maxY) / 2 - 8 / zoom, zoom };
+    // Build mode has a taller toolbar at the bottom, so the room moves up to make room for it.
+    const bottom = Build.active ? 300 : 190;
+    const zoom = Math.max(0.4, Math.min(2.0, Math.min((view.w - 60) / bw, (view.h - bottom) / bh)));
+    return { x: (b.minX + b.maxX) / 2, y: (b.minY + b.maxY) / 2 + (bottom - 190) / 2 / zoom - 8 / zoom, zoom };
   }
 
   function activeCamera() { return state.scene === 'interior' ? interiorCamera() : cam; }
@@ -108,6 +110,8 @@
   }
 
   function exitToCity() {
+    if (transitioning) return;
+    Build.setActive(false);
     switchScene(() => {
       state.scene = 'city';
       state.activeBusinessId = null;
@@ -117,12 +121,18 @@
   function updateSceneUI() {
     const inside = state.scene === 'interior';
     el.cityActions.classList.toggle('hidden', inside);
-    el.interiorActions.classList.toggle('hidden', !inside);
+    el.interiorActions.classList.toggle('hidden', !inside || Build.active);
     el.helpCity.classList.toggle('hidden', inside);
     el.helpInterior.classList.toggle('hidden', !inside);
     const b = inside ? business(state.activeBusinessId) : null;
     el.location.textContent = inside ? `Inside ${b ? b.name : 'business'}` : 'City map · Downtown';
-    if (b) el.roomTitle.textContent = b.name;
+    if (b) {
+      el.roomTitle.textContent = b.name;
+      const n = b.layout.items.length;
+      document.getElementById('room-sub').textContent = n
+        ? `80 m\u00b2 \u00b7 ${n} item${n === 1 ? '' : 's'} placed`
+        : '80 m\u00b2 \u00b7 empty, press B to start furnishing';
+    }
     el.tooltip.classList.add('hidden');
     canvas.classList.remove('pointer');
   }
@@ -180,12 +190,17 @@
   // ---------- Hover / tooltip ----------
 
   function updateHover() {
-    if (transitioning || !mouse.inside || (drag && drag.moved)) {
+    const building = state.scene === 'interior' && Build.active;
+    if (transitioning || !mouse.inside || (drag && drag.moved && state.scene === 'city')) {
       hover = null;
+      if (building) Build.onMove(null);
     } else {
       const w = screenToWorld(mouse.x, mouse.y);
       if (state.scene === 'city') {
         hover = City.pick(w.x, w.y);
+      } else if (building) {
+        hover = null;
+        Build.onMove(Interior.gridAt(w.x, w.y));
       } else {
         hover = Interior.pick(w.x, w.y);
       }
@@ -193,7 +208,12 @@
 
     let html = null;
     let pointer = false;
-    if (state.scene === 'city' && hover) {
+    const info = building ? Build.info : null;
+    if (info) {
+      const amount = info.amount ? `<span class="${info.amount < 0 ? 'price-neg' : 'price-pos'}">${info.amount < 0 ? '' : '+'}${moneyFmt.format(info.amount)}</span>` : '';
+      const verb = { place: 'Click to buy and place', build: 'Click to buy', sell: 'Click to sell' }[info.action] || '';
+      html = `<b>${info.title}</b>${amount}` + (info.ok ? `<small>${verb}</small>` : `<small class="bad">${info.reason || 'Can\u2019t build here'}</small>`);
+    } else if (state.scene === 'city' && hover) {
       const b = business(hover);
       html = `<b>${b ? b.name : 'Business'}</b><small>Click to go inside</small>`;
       pointer = true;
@@ -216,9 +236,15 @@
 
   canvas.addEventListener('contextmenu', e => e.preventDefault());
 
+  function gridUnderMouse(e) {
+    const w = screenToWorld(e.clientX, e.clientY);
+    return Interior.gridAt(w.x, w.y);
+  }
+
   canvas.addEventListener('mousedown', e => {
     if (e.button !== 0 && e.button !== 2) return;
     drag = { sx: e.clientX, sy: e.clientY, cx: cam.x, cy: cam.y, moved: false, button: e.button };
+    if (state.scene === 'interior' && Build.active && !transitioning) Build.onDown(gridUnderMouse(e), e.button);
   });
 
   window.addEventListener('mousemove', e => {
@@ -244,6 +270,7 @@
     const wasClick = !drag.moved && drag.button === 0 && e.target === canvas;
     drag = null;
     canvas.classList.remove('dragging');
+    if (state.scene === 'interior' && Build.active) { Build.onUp(gridUnderMouse(e)); return; }
     if (!wasClick || transitioning) return;
     const w = screenToWorld(e.clientX, e.clientY);
     if (state.scene === 'city') {
@@ -273,7 +300,11 @@
     const k = e.key.toLowerCase();
     if (k === ' ') { e.preventDefault(); setSpeed(state.speed === 0 ? lastSpeed : 0); return; }
     if (k === '1' || k === '2' || k === '3') { setSpeed(Number(k)); return; }
-    if (k === 'escape' && state.scene === 'interior') { exitToCity(); return; }
+    if (state.scene === 'interior' && !transitioning) {
+      if (k === 'escape') { if (!Build.cancel()) exitToCity(); return; }
+      if (k === 'b') { Build.setActive(!Build.active); return; }
+      if (k === 'r' && Build.active) { Build.rotate(); return; }
+    }
     if (['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(k)) {
       e.preventDefault();
       keys.add(k);
@@ -284,6 +315,7 @@
 
   el.speedBtns.forEach(b => b.addEventListener('click', () => setSpeed(Number(b.dataset.speed))));
   document.getElementById('back-btn').addEventListener('click', exitToCity);
+  document.getElementById('build-btn').addEventListener('click', () => Build.setActive(true));
   document.getElementById('focus-btn').addEventListener('click', () => {
     const c = City.businessCenter('pizzeria-1');
     camTarget = { x: c.x, y: c.y };
@@ -312,6 +344,7 @@
 
   function update(dt) {
     clockT += dt;
+    Build.update(dt);
     state.time += SPEEDS[state.speed] * dt;
 
     if (state.scene === 'city') {
@@ -367,7 +400,13 @@
 
     if (inside) {
       Iso.setAmbient([1, 1, 1]);
-      Interior.render(ctx, { light, hover });
+      const b = business(state.activeBusinessId);
+      Interior.render(ctx, {
+        light, hover,
+        layout: b ? b.layout : Layout.create(),
+        preview: Build.active ? Build.preview : null,
+        floaters: Build.floaters,
+      });
     } else {
       Iso.setAmbient(light.ambient);
       City.render(ctx, { light, hover, t: clockT });
@@ -384,6 +423,20 @@
     requestAnimationFrame(frame);
   }
 
+  Build.init({
+    layout: () => business(state.activeBusinessId).layout,
+    money: () => state.money,
+    spend(n) { state.money -= n; Build.refreshPrices(); updateHUD(); },
+    earn(n) { state.money += n; Build.refreshPrices(); updateHUD(); },
+    changed: saveNow,
+    onModeChange(on) {
+      el.interiorActions.classList.toggle('hidden', on || state.scene !== 'interior');
+      canvas.classList.toggle('building', on);
+      document.body.classList.toggle('building', on);
+      updateSceneUI();
+    },
+  });
+
   resize();
   initCamera();
   updateSceneUI();
@@ -391,5 +444,14 @@
   requestAnimationFrame(frame);
 
   // Handy for debugging in the browser console.
-  window.Game = { get state() { return state; }, saveNow };
+  window.Game = {
+    get state() { return state; },
+    saveNow,
+    // Screen position of a point in the current room's grid (used by tests).
+    gridToScreen(gx, gy, z) {
+      const c = activeCamera();
+      const p = Iso.toScreen(gx, gy, z || 0);
+      return { x: (p.x - c.x) * c.zoom + view.w / 2, y: (p.y - c.y) * c.zoom + view.h / 2 };
+    },
+  };
 })();
