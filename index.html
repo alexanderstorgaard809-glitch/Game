@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Slice Tycoon</title>
+  <meta name="description" content="A small isometric business game. Step 1: the city and your first pizzeria.">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <canvas id="game"></canvas>
+
+  <!-- Top bar -->
+  <header id="topbar">
+    <div class="panel brand">
+      <span class="logo" aria-hidden="true"></span>
+      <div>
+        <div class="title">Slice Tycoon</div>
+        <div id="location" class="subtitle">City map</div>
+      </div>
+    </div>
+
+    <div class="panel stats">
+      <div class="stat">
+        <span class="label">Cash</span>
+        <span id="money" class="value money">$0</span>
+      </div>
+      <div class="divider"></div>
+      <div class="stat">
+        <span class="label">Day</span>
+        <span id="day" class="value">1</span>
+      </div>
+      <div class="divider"></div>
+      <div class="stat">
+        <span class="label">Time</span>
+        <span id="clock" class="value">Mon 08:00</span>
+      </div>
+      <div class="divider"></div>
+      <div class="speed" role="group" aria-label="Game speed">
+        <button data-speed="0" title="Pause (Space)">&#10074;&#10074;</button>
+        <button data-speed="1" title="Normal speed (1)">&#9654;</button>
+        <button data-speed="2" title="Fast (2)">&#9654;&#9654;</button>
+        <button data-speed="3" title="Very fast (3)">&#9654;&#9654;&#9654;</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- City-only controls -->
+  <div id="city-actions" class="panel actions">
+    <button id="focus-btn" class="btn">Find my pizzeria</button>
+  </div>
+
+  <!-- Interior-only controls -->
+  <div id="interior-actions" class="panel actions hidden">
+    <div class="room-info">
+      <div class="room-title" id="room-title">My Pizzeria</div>
+      <div class="room-sub">Empty premises &middot; 80 m&sup2; &middot; ready to furnish (coming soon)</div>
+    </div>
+    <button id="back-btn" class="btn primary">&larr; Back to city <kbd>Esc</kbd></button>
+  </div>
+
+  <div id="help" class="panel help">
+    <div id="help-city">
+      <b>Controls</b>
+      <span><kbd>Click</kbd> the pizzeria to go inside</span>
+      <span><kbd>Drag</kbd> or <kbd>WASD</kbd> / arrows to move</span>
+      <span><kbd>Scroll</kbd> to zoom</span>
+      <span><kbd>Space</kbd> pause &middot; <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> speed</span>
+    </div>
+    <div id="help-interior" class="hidden">
+      <b>Controls</b>
+      <span><kbd>Esc</kbd> or click the door to leave</span>
+      <span><kbd>Space</kbd> pause &middot; <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> speed</span>
+    </div>
+  </div>
+
+  <div id="savebar" class="panel savebar">
+    <span id="save-status">Not saved yet</span>
+    <button id="reset-btn" class="link" title="Delete the save and start over">New game</button>
+  </div>
+
+  <div id="tooltip" class="hidden"></div>
+  <div id="fade"></div>
+
+  <script src="js/iso.js"></script>
+  <script src="js/save.js"></script>
+  <script src="js/city.js"></script>
+  <script src="js/interior.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
