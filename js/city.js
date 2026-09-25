@@ -330,7 +330,7 @@
     ], Iso.shade(color, face.shade - 0.05));
   }
 
-  function drawPizzeria(ctx, p, light, hover, t) {
+  function drawPizzeria(ctx, p, light, hover, t, alerts) {
     const z0 = CURB;
     const wall = '#f3e4c6';
     const brick = '#b4523b';
@@ -394,6 +394,16 @@
     const bob = Math.sin(t * 2.4) * 4;
     const m = Iso.toScreen(p.x + p.w / 2, p.y + p.d / 2, top + 64 + bob);
     drawMarker(ctx, m.x, m.y, hover);
+    if (alerts) {
+      // Red badge: something at the pizzeria needs attention.
+      ctx.fillStyle = '#e8573f';
+      ctx.beginPath(); ctx.arc(m.x + 13, m.y - 12, 8, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.fillStyle = '#fff';
+      ctx.font = '900 11px "Nunito", "Segoe UI", system-ui, sans-serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('!', m.x + 13, m.y - 11.5);
+    }
   }
 
   function drawMarker(ctx, x, y, hover) {
@@ -474,7 +484,7 @@
         case 'lamp': drawLamp(ctx, d.o, light); break;
         case 'bench': drawBench(ctx, d.o); break;
         case 'fountain': drawFountain(ctx, d.o); break;
-        case 'pizzeria': drawPizzeria(ctx, d.o, light, opts.hover === d.o.id, opts.t); break;
+        case 'pizzeria': drawPizzeria(ctx, d.o, light, opts.hover === d.o.id, opts.t, opts.alerts); break;
       }
     }
   }

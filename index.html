@@ -45,9 +45,13 @@
     </div>
   </header>
 
+  <!-- Warnings about the business -->
+  <div id="alerts" class="alerts hidden" aria-live="polite"></div>
+
   <!-- City-only controls -->
   <div id="city-actions" class="panel actions">
     <button id="focus-btn" class="btn">Find my pizzeria</button>
+    <button id="city-staff-btn" class="btn">Staff <kbd>P</kbd></button>
   </div>
 
   <!-- Interior-only controls -->
@@ -56,7 +60,8 @@
       <div class="room-title" id="room-title">My Pizzeria</div>
       <div class="room-sub" id="room-sub">80 m&sup2;</div>
     </div>
-    <button id="build-btn" class="btn">Build &amp; furnish <kbd>B</kbd></button>
+    <button id="build-btn" class="btn">Build <kbd>B</kbd></button>
+    <button id="staff-btn" class="btn">Staff <kbd>P</kbd></button>
     <button id="back-btn" class="btn primary">&larr; Back to city <kbd>Esc</kbd></button>
   </div>
 
@@ -78,12 +83,12 @@
       <b>Controls</b>
       <span><kbd>Click</kbd> the pizzeria to go inside</span>
       <span><kbd>Drag</kbd> or <kbd>WASD</kbd> / arrows to move</span>
-      <span><kbd>Scroll</kbd> to zoom</span>
+      <span><kbd>Scroll</kbd> to zoom &middot; <kbd>P</kbd> staff</span>
       <span><kbd>Space</kbd> pause &middot; <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> speed</span>
     </div>
     <div id="help-interior" class="hidden">
       <b>Controls</b>
-      <span><kbd>B</kbd> build &amp; furnish</span>
+      <span><kbd>B</kbd> build &amp; furnish &middot; <kbd>P</kbd> staff</span>
       <span><kbd>Esc</kbd> or click the door to leave</span>
       <span><kbd>Space</kbd> pause &middot; <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> speed</span>
     </div>
@@ -98,16 +103,33 @@
     </span>
   </div>
 
+  <!-- Management window -->
+  <div id="manage" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="manage-title">
+    <div class="modal-card panel">
+      <header class="modal-head">
+        <h2 id="manage-title">My Pizzeria</h2>
+        <nav id="manage-tabs" class="tabs"></nav>
+        <button id="manage-close" class="btn small" aria-label="Close">Close <kbd>Esc</kbd></button>
+      </header>
+      <div id="manage-body" class="modal-body"></div>
+    </div>
+  </div>
+
   <div id="tooltip" class="hidden"></div>
   <div id="fade"></div>
 
   <script src="js/iso.js"></script>
   <script src="js/furniture.js"></script>
   <script src="js/layout.js"></script>
+  <script src="js/business.js"></script>
   <script src="js/save.js"></script>
   <script src="js/city.js"></script>
   <script src="js/interior.js"></script>
   <script src="js/build.js"></script>
+  <script src="js/path.js"></script>
+  <script src="js/people.js"></script>
+  <script src="js/sim.js"></script>
+  <script src="js/manage.js"></script>
   <script src="js/main.js"></script>
 </body>
 </html>

@@ -14,7 +14,7 @@
       activeBusinessId: null,
       camera: null, // filled in by the city on first run
       businesses: [
-        { id: 'pizzeria-1', type: 'pizzeria', name: 'My Pizzeria', layout: Layout.create() },
+        Object.assign({ id: 'pizzeria-1', type: 'pizzeria', name: 'My Pizzeria', layout: Layout.create() }, Business.defaults()),
       ],
     };
   }
@@ -39,6 +39,7 @@
           if (!saved) continue;
           if (typeof saved.name === 'string' && saved.name) b.name = saved.name;
           b.layout = Layout.sanitize(saved.layout);
+          Business.restore(b, saved);
         }
       }
       if (data.scene === 'interior' && base.businesses.some(b => b.id === data.activeBusinessId)) {

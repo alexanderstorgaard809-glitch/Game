@@ -222,8 +222,12 @@
     return e.o === 'h' ? { x0: e.x, x1: e.x + 1, y0: e.y, y1: e.y } : { x0: e.x, x1: e.x, y0: e.y, y1: e.y + 1 };
   }
 
-  function collectObjects(layout, preview) {
+  function collectObjects(layout, preview, agents, hoverAgent) {
     const objs = [];
+    for (const a of agents || []) {
+      const r = 0.12;
+      objs.push({ x0: a.x - r, x1: a.x + r, y0: a.y - r, y1: a.y + r, kind: 'person', a, alpha: 1, hover: a === hoverAgent });
+    }
     const removeItem = preview && preview.removeItem;
     const removeEdge = preview && preview.removeEdge;
     const ghostDoorEdges = (preview && preview.ghostWalls || []).filter(g => g.door && g.ok);
@@ -253,7 +257,8 @@
   function drawObject(ctx, o) {
     ctx.save();
     ctx.globalAlpha = o.alpha;
-    if (o.kind === 'item') Furniture.items[o.item.type].draw(ctx, o.fp, o.item.rot);
+    if (o.kind === 'person') People.draw(ctx, o.a, o.hover ? 'rgba(255, 214, 96, 0.9)' : null);
+    else if (o.kind === 'item') Furniture.items[o.item.type].draw(ctx, o.fp, o.item.rot);
     else if (o.kind === 'wall') Furniture.drawWall(ctx, o.e);
     else Furniture.drawDoorway(ctx, o.e);
     ctx.restore();
@@ -305,13 +310,17 @@
     if (preview) drawGrid(ctx);
     if (preview) drawPreviewFloor(ctx, preview);
     drawOuterWalls(ctx, opts.light, layout, preview, opts.hover);
-    for (const o of collectObjects(layout, preview)) drawObject(ctx, o);
+    const hoverAgent = opts.hover && opts.hover.type === 'person' ? opts.hover.agent : null;
+    for (const o of collectObjects(layout, preview, opts.agents, hoverAgent)) drawObject(ctx, o);
     if (opts.floaters && opts.floaters.length) drawFloaters(ctx, opts.floaters);
   }
 
   function gridAt(wx, wy) { return Iso.toGrid(wx, wy); }
 
-  function pick(wx, wy) {
+  function pick(wx, wy, agents) {
+    // People first, front-most wins.
+    const hit = (agents || []).filter(a => People.hitTest(a, wx, wy)).sort((a, b) => (b.x + b.y) - (a.x + a.y))[0];
+    if (hit) return { type: 'person', agent: hit };
     if (Iso.pointInPoly(wx, wy, entrancePoly())) return { type: 'door' };
     const g = Iso.toGrid(wx, wy);
     if (g.x >= 0 && g.y >= 0 && g.x < W && g.y < D) return { type: 'tile', x: Math.floor(g.x), y: Math.floor(g.y) };

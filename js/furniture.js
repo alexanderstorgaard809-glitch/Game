@@ -1,6 +1,6 @@
 // Catalog of things you can build inside a business, and how each one is drawn.
 (function () {
-  const WALL_H = 64;   // height of walls you build yourself
+  const WALL_H = 50;   // height of walls you build yourself (low enough to see people behind them)
   const WALL_T = 0.14; // thickness in tiles
 
   const PRICES = { wall: 120, door: 350 };
@@ -165,7 +165,7 @@
     Iso.tile(ctx, e.o === 'h' ? e.x + post : e.x - WALL_T / 2, e.o === 'h' ? e.y - WALL_T / 2 : e.y + post,
       e.o === 'h' ? 1 - post * 2 : WALL_T, e.o === 'h' ? WALL_T : 1 - post * 2, 0.5, Iso.shade('#7b4a36'));
     Iso.box(ctx, ...wallBox(e, 0, post, 0, WALL_H, wallColors()));
-    Iso.box(ctx, ...wallBox(e, post, 1 - post, 50, WALL_H - 50, wallColors()));
+    Iso.box(ctx, ...wallBox(e, post, 1 - post, WALL_H - 9, 9, wallColors()));
     Iso.box(ctx, ...wallBox(e, 1 - post, 1, 0, WALL_H, wallColors()));
   }
 

@@ -202,7 +202,7 @@
         hover = null;
         Build.onMove(Interior.gridAt(w.x, w.y));
       } else {
-        hover = Interior.pick(w.x, w.y);
+        hover = Interior.pick(w.x, w.y, activeAgents());
       }
     }
 
@@ -217,6 +217,8 @@
       const b = business(hover);
       html = `<b>${b ? b.name : 'Business'}</b><small>Click to go inside</small>`;
       pointer = true;
+    } else if (state.scene === 'interior' && hover && hover.type === 'person') {
+      html = personTooltip(hover.agent);
     } else if (state.scene === 'interior' && hover && hover.type === 'door') {
       html = '<b>Exit</b><small>Back to the city map</small>';
       pointer = true;
@@ -231,6 +233,43 @@
       el.tooltip.classList.add('hidden');
     }
   }
+
+  function activeAgents() {
+    const b = business(state.activeBusinessId);
+    return b ? Sim.agents(b) : [];
+  }
+
+  function personTooltip(a) {
+    const b = business(state.activeBusinessId);
+    if (a.kind === 'staff') {
+      const m = b.staff.find(s => s.id === a.id);
+      if (!m) return null;
+      const st = Sim.staffStatus(b, m, hourOfDay());
+      return `<b>${m.name}</b> <span class="muted">${Business.ROLES[m.role].name}</span>` +
+        `<small class="${st.kind === 'problem' ? 'bad' : ''}">${st.text}</small>`;
+    }
+    return null;
+  }
+
+  function hourOfDay() { return (state.time % 1440) / 60; }
+
+  // Warnings about the business, shown in both the city and the room.
+  let alertsKey = '';
+  function renderAlerts() {
+    const b = state.businesses[0];
+    const issues = Sim.issues(b);
+    const key = issues.map(i => i.text).join('|');
+    if (key === alertsKey) return;
+    alertsKey = key;
+    const box = document.getElementById('alerts');
+    box.classList.toggle('hidden', !issues.length);
+    const shown = issues.slice(0, 4);
+    box.innerHTML = shown.map(i => `<button class="alert" data-staff="${i.staffId || ''}">${i.text.replace(/</g, '&lt;')}</button>`).join('') +
+      (issues.length > shown.length ? `<button class="alert more">+${issues.length - shown.length} more in the staff window</button>` : '');
+  }
+  document.getElementById('alerts').addEventListener('click', e => {
+    if (e.target.closest('.alert')) Manage.show('staff');
+  });
 
   // ---------- Input ----------
 
@@ -277,7 +316,7 @@
       const id = City.pick(w.x, w.y);
       if (id) enterBusiness(id);
     } else {
-      const hit = Interior.pick(w.x, w.y);
+      const hit = Interior.pick(w.x, w.y, activeAgents());
       if (hit && hit.type === 'door') exitToCity();
     }
   });
@@ -298,9 +337,16 @@
   window.addEventListener('keydown', e => {
     if (e.ctrlKey || e.metaKey || e.altKey) return;
     const k = e.key.toLowerCase();
+    const typing = e.target && /^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName);
+    if (Manage.isOpen) {
+      if (k === 'escape') { Manage.close(); return; }
+      if (typing) return;
+      if (k === 'p') { Manage.toggle('staff'); return; }
+    } else if (k === 'p' && !transitioning) { Manage.show('staff'); return; }
+    if (typing) return;
     if (k === ' ') { e.preventDefault(); setSpeed(state.speed === 0 ? lastSpeed : 0); return; }
     if (k === '1' || k === '2' || k === '3') { setSpeed(Number(k)); return; }
-    if (state.scene === 'interior' && !transitioning) {
+    if (state.scene === 'interior' && !transitioning && !Manage.isOpen) {
       if (k === 'escape') { if (!Build.cancel()) exitToCity(); return; }
       if (k === 'b') { Build.setActive(!Build.active); return; }
       if (k === 'r' && Build.active) { Build.rotate(); return; }
@@ -316,6 +362,8 @@
   el.speedBtns.forEach(b => b.addEventListener('click', () => setSpeed(Number(b.dataset.speed))));
   document.getElementById('back-btn').addEventListener('click', exitToCity);
   document.getElementById('build-btn').addEventListener('click', () => Build.setActive(true));
+  document.getElementById('staff-btn').addEventListener('click', () => Manage.show('staff'));
+  document.getElementById('city-staff-btn').addEventListener('click', () => Manage.show('staff'));
   document.getElementById('focus-btn').addEventListener('click', () => {
     const c = City.businessCenter('pizzeria-1');
     camTarget = { x: c.x, y: c.y };
@@ -342,10 +390,14 @@
 
   // ---------- Loop ----------
 
+  let liveIn = 0;
   function update(dt) {
     clockT += dt;
     Build.update(dt);
-    state.time += SPEEDS[state.speed] * dt;
+    // The businesses keep running in every scene; this also moves the clock forward.
+    Sim.update(state, SPEEDS[state.speed] * dt);
+    liveIn -= dt;
+    if (liveIn <= 0) { liveIn = 0.25; renderAlerts(); Manage.refreshLive(); }
 
     if (state.scene === 'city') {
       let dx = 0, dy = 0;
@@ -406,10 +458,11 @@
         layout: b ? b.layout : Layout.create(),
         preview: Build.active ? Build.preview : null,
         floaters: Build.floaters,
+        agents: b ? Sim.agents(b) : [],
       });
     } else {
       Iso.setAmbient(light.ambient);
-      City.render(ctx, { light, hover, t: clockT });
+      City.render(ctx, { light, hover, t: clockT, alerts: Sim.issues(state.businesses[0]).length });
       Iso.setAmbient([1, 1, 1]);
     }
   }
@@ -428,12 +481,28 @@
     money: () => state.money,
     spend(n) { state.money -= n; Build.refreshPrices(); updateHUD(); },
     earn(n) { state.money += n; Build.refreshPrices(); updateHUD(); },
-    changed: saveNow,
+    changed() {
+      Sim.layoutChanged(business(state.activeBusinessId));
+      renderAlerts();
+      saveNow();
+    },
     onModeChange(on) {
       el.interiorActions.classList.toggle('hidden', on || state.scene !== 'interior');
       canvas.classList.toggle('building', on);
       document.body.classList.toggle('building', on);
       updateSceneUI();
+    },
+  });
+
+  Manage.init({
+    business: () => state.businesses[0],
+    day: () => Math.floor(state.time / 1440) + 1,
+    hour: hourOfDay,
+    money: () => state.money,
+    changed() {
+      Sim.layoutChanged(state.businesses[0]);
+      renderAlerts();
+      saveNow();
     },
   });
 
