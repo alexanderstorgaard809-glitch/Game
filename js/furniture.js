@@ -31,7 +31,7 @@
 
   // ---------- Items ----------
 
-  function drawCounter(ctx, fp) {
+  function drawCounter(ctx, fp, rot, extra) {
     const b = inset(fp, 0.06);
     Iso.box(ctx, b.x, b.y, b.w, b.d, 26, C.steel);
     // Cupboard doors on the visible sides
@@ -41,14 +41,24 @@
     for (let i = 0; i < nX; i++) Iso.faceQuad(ctx, fx, (i + 0.1) / nX, (i + 0.9) / nX, 4, 22, null, Iso.shade(C.steelDark, 0.6), 1);
     // Butcher-block worktop
     Iso.box(ctx, b.x - 0.03, b.y - 0.03, b.w + 0.06, b.d + 0.06, 4, C.butcher, 26);
-    // A ball of dough and a tomato tin on top
-    const c = Iso.toScreen(b.x + b.w * 0.3, b.y + b.d * 0.5, 33);
-    ctx.fillStyle = Iso.shade('#f3e6c8');
-    ctx.beginPath(); ctx.ellipse(c.x, c.y, 7, 4, 0, 0, Math.PI * 2); ctx.fill();
-    Iso.box(ctx, b.x + b.w * 0.7 - 0.08, b.y + b.d * 0.5 - 0.08, 0.16, 0.16, 7, '#c9422f', 30);
+    const ready = extra && extra.pizzas ? Math.min(4, extra.pizzas) : 0;
+    if (ready) {
+      // Finished pizzas waiting for the waiter
+      for (let i = 0; i < ready; i++) {
+        const u = (i + 0.5) / ready;
+        const c = Iso.toScreen(b.x + (b.w > b.d ? b.w * u : b.w / 2), b.y + (b.w > b.d ? b.d / 2 : b.d * u), 31);
+        People.drawPizza(ctx, c.x, c.y, 8);
+      }
+    } else {
+      // A ball of dough and a tomato tin on top
+      const c = Iso.toScreen(b.x + b.w * 0.3, b.y + b.d * 0.5, 33);
+      ctx.fillStyle = Iso.shade('#f3e6c8');
+      ctx.beginPath(); ctx.ellipse(c.x, c.y, 7, 4, 0, 0, Math.PI * 2); ctx.fill();
+      Iso.box(ctx, b.x + b.w * 0.7 - 0.08, b.y + b.d * 0.5 - 0.08, 0.16, 0.16, 7, '#c9422f', 30);
+    }
   }
 
-  function drawOven(ctx, fp, rot) {
+  function drawOven(ctx, fp, rot, extra) {
     const b = inset(fp, 0.06);
     Iso.box(ctx, b.x, b.y, b.w, b.d, 20, C.brick);
     // Brick courses
@@ -79,9 +89,20 @@
       ctx.transform(1, rot === 0 ? 0.5 : -0.5, 0, 1, 0, 0);
       ctx.fillStyle = '#2a1510';
       ctx.beginPath(); ctx.ellipse(0, 0, 8, 9, 0, Math.PI, Math.PI * 2); ctx.closePath(); ctx.fill();
-      ctx.fillStyle = Iso.glow('#ff9a3c');
-      ctx.beginPath(); ctx.ellipse(0, 0, 5, 5, 0, Math.PI, Math.PI * 2); ctx.closePath(); ctx.fill();
+      const baking = extra && extra.baking;
+      ctx.fillStyle = Iso.glow(baking ? '#ffd26a' : '#ff9a3c');
+      ctx.beginPath(); ctx.ellipse(0, 0, baking ? 6.5 : 5, baking ? 7 : 5, 0, Math.PI, Math.PI * 2); ctx.closePath(); ctx.fill();
       ctx.restore();
+    }
+    if (extra && extra.baking) {
+      // Smoke from the chimney while pizzas bake
+      const sm = Iso.toScreen(cx - f[0] * 0.2, cy - f[1] * 0.2, 60);
+      const t = performance.now() / 700;
+      ctx.fillStyle = 'rgba(235, 230, 225, 0.45)';
+      for (let i = 0; i < 3; i++) {
+        const k = (t + i / 3) % 1;
+        ctx.beginPath(); ctx.arc(sm.x + Math.sin((t + i) * 2) * 3, sm.y - k * 22, 3 + k * 4, 0, Math.PI * 2); ctx.fill();
+      }
     }
   }
 
@@ -111,7 +132,7 @@
     Iso.box(ctx, cx - 0.04, cy - 0.04, 0.08, 0.08, 7, '#9fb04a', 27);
   }
 
-  function drawChair(ctx, fp, rot) {
+  function drawChair(ctx, fp, rot, extra) {
     const cx = fp.x + fp.w / 2, cy = fp.y + fp.d / 2;
     const f = FACING[rot];
     const s = 0.22;
@@ -126,6 +147,7 @@
       Iso.box(ctx, cx + dx * (s - 0.03) - 0.025, cy + dy * (s - 0.03) - 0.025, 0.05, 0.05, 13, '#5c3a26');
     }
     Iso.box(ctx, cx - s, cy - s, s * 2, s * 2, 3, C.woodLight, 13);
+    if (extra && extra.occupant) extra.occupant();
     if (!backIsBehind) back();
   }
 

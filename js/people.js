@@ -89,6 +89,20 @@
 
     ctx.restore();
 
+    if (p.kind === 'customer' && p.state === 'leaving' && p.mood && p.mood !== 'ok') {
+      // How the visit went
+      const by = hy - 20;
+      const happy = p.mood === 'happy';
+      ctx.fillStyle = happy ? '#4fa864' : '#c8412f';
+      ctx.beginPath(); ctx.arc(x, by, 7, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.4; ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.arc(x, by + (happy ? -0.5 : 4.5), 3.2, happy ? 0.15 * Math.PI : 1.15 * Math.PI, happy ? 0.85 * Math.PI : 1.85 * Math.PI);
+      ctx.stroke();
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(x - 2.6, by - 2.6, 1.4, 1.6); ctx.fillRect(x + 1.2, by - 2.6, 1.4, 1.6);
+    }
+
     if (p.problem) {
       const by = hy - (p.role === 'cook' ? 30 : 22);
       ctx.fillStyle = '#e8573f';

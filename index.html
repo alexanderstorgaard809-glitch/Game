@@ -26,6 +26,11 @@
         <span id="money" class="value money">$0</span>
       </div>
       <div class="divider"></div>
+      <div class="stat" title="Reputation of your pizzeria">
+        <span class="label">Rating</span>
+        <span id="rating" class="value rating">&#9733; 2.5</span>
+      </div>
+      <div class="divider"></div>
       <div class="stat">
         <span class="label">Day</span>
         <span id="day" class="value">1</span>
@@ -51,7 +56,9 @@
   <!-- City-only controls -->
   <div id="city-actions" class="panel actions">
     <button id="focus-btn" class="btn">Find my pizzeria</button>
-    <button id="city-staff-btn" class="btn">Staff <kbd>P</kbd></button>
+    <button id="city-staff-btn" class="btn" data-manage="staff">Staff <kbd>P</kbd></button>
+    <button class="btn" data-manage="menu">Menu <kbd>M</kbd></button>
+    <button class="btn" data-manage="finances">Finances <kbd>F</kbd></button>
   </div>
 
   <!-- Interior-only controls -->
@@ -61,7 +68,9 @@
       <div class="room-sub" id="room-sub">80 m&sup2;</div>
     </div>
     <button id="build-btn" class="btn">Build <kbd>B</kbd></button>
-    <button id="staff-btn" class="btn">Staff <kbd>P</kbd></button>
+    <button id="staff-btn" class="btn" data-manage="staff">Staff <kbd>P</kbd></button>
+    <button class="btn" data-manage="menu">Menu <kbd>M</kbd></button>
+    <button class="btn" data-manage="finances">Finances <kbd>F</kbd></button>
     <button id="back-btn" class="btn primary">&larr; Back to city <kbd>Esc</kbd></button>
   </div>
 
@@ -83,12 +92,14 @@
       <b>Controls</b>
       <span><kbd>Click</kbd> the pizzeria to go inside</span>
       <span><kbd>Drag</kbd> or <kbd>WASD</kbd> / arrows to move</span>
-      <span><kbd>Scroll</kbd> to zoom &middot; <kbd>P</kbd> staff</span>
+      <span><kbd>Scroll</kbd> to zoom</span>
+      <span><kbd>P</kbd> staff &middot; <kbd>M</kbd> menu &middot; <kbd>F</kbd> finances</span>
       <span><kbd>Space</kbd> pause &middot; <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> speed</span>
     </div>
     <div id="help-interior" class="hidden">
       <b>Controls</b>
-      <span><kbd>B</kbd> build &amp; furnish &middot; <kbd>P</kbd> staff</span>
+      <span><kbd>B</kbd> build &amp; furnish</span>
+      <span><kbd>P</kbd> staff &middot; <kbd>M</kbd> menu &middot; <kbd>F</kbd> finances</span>
       <span><kbd>Esc</kbd> or click the door to leave</span>
       <span><kbd>Space</kbd> pause &middot; <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> speed</span>
     </div>
@@ -115,6 +126,7 @@
     </div>
   </div>
 
+  <div id="toast" class="toast hidden" role="status"></div>
   <div id="tooltip" class="hidden"></div>
   <div id="fade"></div>
 

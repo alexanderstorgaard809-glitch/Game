@@ -338,5 +338,6 @@
     get info() { return B.info; },
     get floaters() { return B.floaters; },
     formatMoney: (n) => money.format(n),
+    addFloater: floater,
   };
 })();

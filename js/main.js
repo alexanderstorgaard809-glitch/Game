@@ -10,6 +10,7 @@
 
   const el = {
     money: document.getElementById('money'),
+    rating: document.getElementById('rating'),
     day: document.getElementById('day'),
     clock: document.getElementById('clock'),
     location: document.getElementById('location'),
@@ -130,8 +131,8 @@
       el.roomTitle.textContent = b.name;
       const n = b.layout.items.length;
       document.getElementById('room-sub').textContent = n
-        ? `80 m\u00b2 \u00b7 ${n} item${n === 1 ? '' : 's'} placed`
-        : '80 m\u00b2 \u00b7 empty, press B to start furnishing';
+        ? `${n} item${n === 1 ? '' : 's'} \u00b7 80 m\u00b2`
+        : 'Empty \u00b7 press B to furnish';
     }
     el.tooltip.classList.add('hidden');
     canvas.classList.remove('pointer');
@@ -166,7 +167,9 @@
     const minuteOfDay = total % 1440;
     const hh = Math.floor(minuteOfDay / 60);
     const mm = Math.floor((minuteOfDay % 60) / 5) * 5;
-    setText(el.money, 'money', moneyFmt.format(state.money));
+    setText(el.money, 'money', (state.money < 0 ? '\u2212' : '') + moneyFmt.format(Math.abs(state.money)));
+    el.money.classList.toggle('negative', state.money < 0);
+    setText(el.rating, 'rating', '\u2605 ' + (state.businesses[0].reputation / 20).toFixed(1));
     setText(el.day, 'day', String(day));
     setText(el.clock, 'clock', `${DAYS[(day - 1) % 7]} ${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`);
     const speedKey = 'speed' + state.speed;
@@ -248,7 +251,7 @@
       return `<b>${m.name}</b> <span class="muted">${Business.ROLES[m.role].name}</span>` +
         `<small class="${st.kind === 'problem' ? 'bad' : ''}">${st.text}</small>`;
     }
-    return null;
+    return `<b>Customer</b><small>${Sim.customerStatus(b, a)}</small>`;
   }
 
   function hourOfDay() { return (state.time % 1440) / 60; }
@@ -264,12 +267,39 @@
     const box = document.getElementById('alerts');
     box.classList.toggle('hidden', !issues.length);
     const shown = issues.slice(0, 4);
-    box.innerHTML = shown.map(i => `<button class="alert" data-staff="${i.staffId || ''}">${i.text.replace(/</g, '&lt;')}</button>`).join('') +
-      (issues.length > shown.length ? `<button class="alert more">+${issues.length - shown.length} more in the staff window</button>` : '');
+    box.innerHTML = shown.map(i => i.tab
+      ? `<button class="alert alert-${i.level}" data-tab="${i.tab}">${i.text.replace(/</g, '&lt;')}</button>`
+      : `<div class="alert alert-${i.level}">${i.text.replace(/</g, '&lt;')}</div>`).join('') +
+      (issues.length > shown.length ? `<button class="alert more" data-tab="staff">+${issues.length - shown.length} more</button>` : '');
   }
   document.getElementById('alerts').addEventListener('click', e => {
-    if (e.target.closest('.alert')) Manage.show('staff');
+    const a = e.target.closest('[data-tab]');
+    if (a) Manage.show(a.dataset.tab);
   });
+
+  // Short message at the top of the screen, e.g. the end-of-day summary.
+  let toastTimer = null;
+  function toast(html, seconds) {
+    const t = document.getElementById('toast');
+    t.innerHTML = html;
+    t.classList.remove('hidden');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.add('hidden'), (seconds || 6) * 1000);
+  }
+
+  function handleSimEvents() {
+    for (const ev of Sim.drainEvents()) {
+      if (ev.type !== 'day') continue;
+      const d = ev.summary;
+      const profit = d.revenue - d.ingredients - d.wages;
+      toast(`<b>Day ${d.day} is over</b> Profit <span class="${profit < 0 ? 'price-neg' : 'price-pos'}">${profit < 0 ? '\u2212' : '+'}${moneyFmt.format(Math.abs(profit))}</span>` +
+        `<small>${d.served} guests served \u00b7 ${d.lost} walked out \u00b7 open the Finances window (F) for details</small>`, 8);
+      saveNow();
+    }
+    // "+$12" over the register for every sale, shown only inside.
+    const sales = Sim.drainFloaters(state.businesses[0]);
+    if (state.scene === 'interior') for (const f of sales) Build.addFloater(f.x, f.y, f.amount);
+  }
 
   // ---------- Input ----------
 
@@ -342,7 +372,9 @@
       if (k === 'escape') { Manage.close(); return; }
       if (typing) return;
       if (k === 'p') { Manage.toggle('staff'); return; }
-    } else if (k === 'p' && !transitioning) { Manage.show('staff'); return; }
+      if (k === 'm') { Manage.toggle('menu'); return; }
+      if (k === 'f') { Manage.toggle('finances'); return; }
+    } else if (!transitioning && (k === 'p' || k === 'm' || k === 'f')) { Manage.show({ p: 'staff', m: 'menu', f: 'finances' }[k]); return; }
     if (typing) return;
     if (k === ' ') { e.preventDefault(); setSpeed(state.speed === 0 ? lastSpeed : 0); return; }
     if (k === '1' || k === '2' || k === '3') { setSpeed(Number(k)); return; }
@@ -362,8 +394,7 @@
   el.speedBtns.forEach(b => b.addEventListener('click', () => setSpeed(Number(b.dataset.speed))));
   document.getElementById('back-btn').addEventListener('click', exitToCity);
   document.getElementById('build-btn').addEventListener('click', () => Build.setActive(true));
-  document.getElementById('staff-btn').addEventListener('click', () => Manage.show('staff'));
-  document.getElementById('city-staff-btn').addEventListener('click', () => Manage.show('staff'));
+  document.querySelectorAll('[data-manage]').forEach(btn => btn.addEventListener('click', () => Manage.show(btn.dataset.manage)));
   document.getElementById('focus-btn').addEventListener('click', () => {
     const c = City.businessCenter('pizzeria-1');
     camTarget = { x: c.x, y: c.y };
@@ -390,12 +421,27 @@
 
   // ---------- Loop ----------
 
+  // Live details drawn on furniture: guests on chairs, pizzas on the counter, ovens baking.
+  function itemExtras(b) {
+    const map = new Map();
+    for (const a of Sim.agents(b)) if (a.seated && a.seat) map.set(a.seat.itemId, { occupant: a });
+    const ready = Sim.readyCount(b);
+    if (ready) {
+      const waiter = Sim.agents(b).find(a => a.kind === 'staff' && a.station && a.station.type === 'counter');
+      const counter = waiter ? waiter.station.itemId : (b.layout.items.find(i => i.type === 'counter') || {}).id;
+      if (counter !== undefined) map.set(counter, { pizzas: ready });
+    }
+    for (const it of b.layout.items) if (it.type === 'oven' && Sim.bakingIn(b, it.id)) map.set(it.id, { baking: Sim.bakingIn(b, it.id) });
+    return map;
+  }
+
   let liveIn = 0;
   function update(dt) {
     clockT += dt;
     Build.update(dt);
     // The businesses keep running in every scene; this also moves the clock forward.
     Sim.update(state, SPEEDS[state.speed] * dt);
+    handleSimEvents();
     liveIn -= dt;
     if (liveIn <= 0) { liveIn = 0.25; renderAlerts(); Manage.refreshLive(); }
 
@@ -459,6 +505,7 @@
         preview: Build.active ? Build.preview : null,
         floaters: Build.floaters,
         agents: b ? Sim.agents(b) : [],
+        extras: b ? itemExtras(b) : null,
       });
     } else {
       Iso.setAmbient(light.ambient);
@@ -482,7 +529,7 @@
     spend(n) { state.money -= n; Build.refreshPrices(); updateHUD(); },
     earn(n) { state.money += n; Build.refreshPrices(); updateHUD(); },
     changed() {
-      Sim.layoutChanged(business(state.activeBusinessId));
+      Sim.layoutChanged(business(state.activeBusinessId), state);
       renderAlerts();
       saveNow();
     },
@@ -499,8 +546,9 @@
     day: () => Math.floor(state.time / 1440) + 1,
     hour: hourOfDay,
     money: () => state.money,
-    changed() {
-      Sim.layoutChanged(state.businesses[0]);
+    changed(message) {
+      Sim.layoutChanged(state.businesses[0], state);
+      if (message) toast(`<b>${message}</b>`, 3);
       renderAlerts();
       saveNow();
     },

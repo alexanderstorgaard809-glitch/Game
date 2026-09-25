@@ -14,6 +14,41 @@
 
   const CANDIDATES_PER_ROLE = 2;
 
+  // ---------- Menu ----------
+
+  // cost: what the ingredients cost you per pizza. value: what customers think it adds to a fair price.
+  const TOPPINGS = {
+    mozzarella: { name: 'Mozzarella', cost: 1.0, value: 1.8 },
+    basil: { name: 'Basil', cost: 0.3, value: 0.6 },
+    pepperoni: { name: 'Pepperoni', cost: 1.2, value: 2.2 },
+    ham: { name: 'Ham', cost: 1.0, value: 1.8 },
+    mushrooms: { name: 'Mushrooms', cost: 0.6, value: 1.1 },
+    peppers: { name: 'Peppers', cost: 0.5, value: 0.9 },
+    onion: { name: 'Onion', cost: 0.3, value: 0.5 },
+    olives: { name: 'Olives', cost: 0.7, value: 1.2 },
+    pineapple: { name: 'Pineapple', cost: 0.6, value: 1.0 },
+    gorgonzola: { name: 'Gorgonzola', cost: 1.4, value: 2.4 },
+  };
+  const BASE = { cost: 1.6, value: 7 }; // dough and tomato sauce
+  const MAX_PIZZAS = 8;
+
+  function pizzaCost(p) { return BASE.cost + p.toppings.reduce((s, t) => s + TOPPINGS[t].cost, 0); }
+  // The price most customers find fair for this pizza.
+  function fairPrice(p) { return BASE.value + p.toppings.reduce((s, t) => s + TOPPINGS[t].value, 0); }
+
+  function addPizza(business, name, toppings, price) {
+    if (business.menu.length >= MAX_PIZZAS) return null;
+    const pizza = { id: 'p' + business.nextPizzaId++, name, toppings: toppings.filter(t => TOPPINGS[t]), price };
+    business.menu.push(pizza);
+    return pizza;
+  }
+
+  // ---------- Accounts ----------
+
+  function emptyDay(day) {
+    return { day, revenue: 0, ingredients: 0, wages: 0, served: 0, lost: 0, waitSum: 0 };
+  }
+
   function wageFor(role, skill) { return ROLES[role].baseWage + (skill - 3) * 2; }
 
   // Deterministic candidates for a given day, so they stay the same until tomorrow.
@@ -85,7 +120,18 @@
   // ---------- Saving ----------
 
   function defaults() {
-    return { staff: [], nextStaffId: 1, candidates: null };
+    return {
+      staff: [], nextStaffId: 1, candidates: null,
+      menu: [
+        { id: 'p1', name: 'Margherita', toppings: ['mozzarella', 'basil'], price: 10 },
+        { id: 'p2', name: 'Pepperoni', toppings: ['mozzarella', 'pepperoni'], price: 12 },
+      ],
+      nextPizzaId: 3,
+      hours: { open: 11, close: 22 },
+      reputation: 50,
+      today: emptyDay(1),
+      history: [],
+    };
   }
 
   const isInt = v => Number.isInteger(v);
@@ -106,6 +152,22 @@
       }
     }
     if (isInt(saved.nextStaffId)) business.nextStaffId = Math.max(business.nextStaffId, saved.nextStaffId);
+    if (Array.isArray(saved.menu)) {
+      business.menu = [];
+      for (const p of saved.menu.slice(0, MAX_PIZZAS)) {
+        if (!p || typeof p.name !== 'string' || !Array.isArray(p.toppings)) continue;
+        const price = typeof p.price === 'number' && isFinite(p.price) ? Math.max(1, Math.min(40, p.price)) : 10;
+        business.menu.push({ id: typeof p.id === 'string' ? p.id : 'p' + business.nextPizzaId++, name: p.name.slice(0, 24), toppings: p.toppings.filter(t => TOPPINGS[t]), price });
+      }
+    }
+    if (isInt(saved.nextPizzaId)) business.nextPizzaId = Math.max(business.nextPizzaId, saved.nextPizzaId);
+    const h = saved.hours;
+    if (h && isInt(h.open) && isInt(h.close) && h.open >= 0 && h.open < 24 && h.close > 0 && h.close <= 24 && h.open !== h.close) business.hours = { open: h.open, close: h.close };
+    if (typeof saved.reputation === 'number' && isFinite(saved.reputation)) business.reputation = Math.max(0, Math.min(100, saved.reputation));
+    const num = v => typeof v === 'number' && isFinite(v) ? v : 0;
+    const day = d => Object.assign(emptyDay(isInt(d.day) ? d.day : 1), { revenue: num(d.revenue), ingredients: num(d.ingredients), wages: num(d.wages), served: num(d.served), lost: num(d.lost), waitSum: num(d.waitSum) });
+    if (saved.today && typeof saved.today === 'object') business.today = day(saved.today);
+    if (Array.isArray(saved.history)) business.history = saved.history.filter(d => d && typeof d === 'object').slice(-14).map(day);
     const c = saved.candidates;
     if (c && isInt(c.day) && Array.isArray(c.list)) {
       business.candidates = { day: c.day, list: c.list.filter(x => x && ROLES[x.role] && typeof x.name === 'string' && typeof x.id === 'string') };
@@ -113,7 +175,16 @@
     return business;
   }
 
+  // Is the business open for customers at this hour?
+  function isOpenAt(business, hour) {
+    return onShift({ start: business.hours.open, end: business.hours.close }, hour);
+  }
+
+  // Work speed from skill: 1 star = 0.9x, 3 stars = 1.1x, 5 stars = 1.3x.
+  function speed(member) { return 0.8 + member.skill * 0.1; }
+
   window.Business = {
     ROLES, ROLE_ORDER, defaults, restore, candidatesFor, hire, fire, onShift, shiftHours, fmtHour, lookFor, wageFor,
+    TOPPINGS, MAX_PIZZAS, pizzaCost, fairPrice, addPizza, emptyDay, isOpenAt, speed,
   };
 })();

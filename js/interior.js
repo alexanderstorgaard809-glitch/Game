@@ -225,6 +225,7 @@
   function collectObjects(layout, preview, agents, hoverAgent) {
     const objs = [];
     for (const a of agents || []) {
+      if (a.seated) continue; // drawn as part of their chair
       const r = 0.12;
       objs.push({ x0: a.x - r, x1: a.x + r, y0: a.y - r, y1: a.y + r, kind: 'person', a, alpha: 1, hover: a === hoverAgent });
     }
@@ -254,11 +255,17 @@
     return sortObjects(objs);
   }
 
-  function drawObject(ctx, o) {
+  function drawObject(ctx, o, extras, hoverAgent) {
     ctx.save();
     ctx.globalAlpha = o.alpha;
     if (o.kind === 'person') People.draw(ctx, o.a, o.hover ? 'rgba(255, 214, 96, 0.9)' : null);
-    else if (o.kind === 'item') Furniture.items[o.item.type].draw(ctx, o.fp, o.item.rot);
+    else if (o.kind === 'item') {
+      const ex = extras && o.item.id !== undefined ? extras.get(o.item.id) : null;
+      const extra = ex && ex.occupant
+        ? Object.assign({}, ex, { occupant: () => People.draw(ctx, ex.occupant, ex.occupant === hoverAgent ? 'rgba(255, 214, 96, 0.9)' : null) })
+        : ex;
+      Furniture.items[o.item.type].draw(ctx, o.fp, o.item.rot, extra);
+    }
     else if (o.kind === 'wall') Furniture.drawWall(ctx, o.e);
     else Furniture.drawDoorway(ctx, o.e);
     ctx.restore();
@@ -311,7 +318,7 @@
     if (preview) drawPreviewFloor(ctx, preview);
     drawOuterWalls(ctx, opts.light, layout, preview, opts.hover);
     const hoverAgent = opts.hover && opts.hover.type === 'person' ? opts.hover.agent : null;
-    for (const o of collectObjects(layout, preview, opts.agents, hoverAgent)) drawObject(ctx, o);
+    for (const o of collectObjects(layout, preview, opts.agents, hoverAgent)) drawObject(ctx, o, opts.extras, hoverAgent);
     if (opts.floaters && opts.floaters.length) drawFloaters(ctx, opts.floaters);
   }
 
