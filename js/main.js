@@ -288,8 +288,17 @@
     const c = City.businessCenter('pizzeria-1');
     camTarget = { x: c.x, y: c.y };
   });
-  document.getElementById('reset-btn').addEventListener('click', () => {
-    if (!confirm('Start a new game? Your saved progress will be deleted.')) return;
+  // In-page confirmation (browser dialogs can be blocked when the game is embedded).
+  const resetBtn = document.getElementById('reset-btn');
+  const resetConfirm = document.getElementById('reset-confirm');
+  function showResetConfirm(show) {
+    resetBtn.classList.toggle('hidden', show);
+    resetConfirm.classList.toggle('hidden', !show);
+    el.saveStatus.classList.toggle('hidden', show);
+  }
+  resetBtn.addEventListener('click', () => showResetConfirm(true));
+  document.getElementById('reset-no').addEventListener('click', () => showResetConfirm(false));
+  document.getElementById('reset-yes').addEventListener('click', () => {
     resetting = true;
     SaveSystem.clear();
     location.reload();

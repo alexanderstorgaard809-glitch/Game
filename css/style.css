@@ -198,6 +198,8 @@ kbd {
   cursor: pointer;
 }
 .link:hover { color: var(--text); }
+.link.danger { color: #ff8a73; margin: 0 6px; }
+#reset-confirm { color: var(--text); }
 
 /* Tooltip */
 #tooltip {
